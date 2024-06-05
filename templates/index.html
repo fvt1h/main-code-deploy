@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Image Classifier</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .container {
+        margin-top: 50px;
+      }
+      .card {
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+      }
+      .btn-primary:hover {
+        background-color: #0056b3;
+        border-color: #004085;
+      }
+      #camera-container {
+        display: none; /* Kamera tersembunyi saat pertama kali dimuat */
+      }
+      #camera-preview {
+        width: 100%;
+        height: auto;
+        margin-bottom: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h2 class="text-center">Image Classifier</h2>
+        <div class="text-center mb-3">
+          <!-- Tombol untuk memilih unggah file atau menggunakan kamera -->
+          <button class="btn btn-secondary" onclick="showFileInput()">
+            Upload File
+          </button>
+          <button class="btn btn-secondary" onclick="showCamera()">
+            Use Camera
+          </button>
+        </div>
+        <!-- Form untuk unggah file, tersembunyi secara default -->
+        <form
+          id="file-upload-form"
+          action="/upload"
+          method="post"
+          enctype="multipart/form-data"
+        >
+          <div class="custom-file mb-3">
+            <input
+              type="file"
+              class="custom-file-input"
+              id="customFile"
+              name="img"
+              accept="image/*"
+            />
+            <label class="custom-file-label" for="customFile"
+              >Choose file</label
+            >
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            Upload
+          </button>
+        </form>
+        <!-- Kontainer untuk kamera, tersembunyi secara default -->
+        <div id="camera-container">
+          <video id="camera-preview" autoplay></video>
+          <button class="btn btn-primary btn-block" id="capture-button">
+            Capture
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Fungsi untuk menampilkan form unggah file
+      function showFileInput() {
+        document.getElementById("file-upload-form").style.display = "block";
+        document.getElementById("camera-container").style.display = "none";
+      }
+
+      // Fungsi untuk menampilkan kamera
+      function showCamera() {
+        document.getElementById("file-upload-form").style.display = "none";
+        document.getElementById("camera-container").style.display = "block";
+        startCamera();
+      }
+
+      // Fungsi untuk memulai kamera
+      function startCamera() {
+        const video = document.getElementById("camera-preview");
+        const constraints = {
+          video: true,
+        };
+
+        navigator.mediaDevices
+          .getUserMedia(constraints)
+          .then((stream) => {
+            video.srcObject = stream;
+          })
+          .catch((err) => {
+            console.error("Error accessing the camera: ", err);
+          });
+      }
+
+      // Menangkap gambar dari kamera dan mengunggahnya ke server
+      document
+        .getElementById("capture-button")
+        .addEventListener("click", function () {
+          const video = document.getElementById("camera-preview");
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          canvas.getContext("2d").drawImage(video, 0, 0);
+          canvas.toBlob(function (blob) {
+            const formData = new FormData();
+            formData.append("img", blob, "capture.jpg"); // Ubah nama file ke .jpg
+            fetch("/upload", {
+              method: "POST",
+              body: formData,
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                console.log("Success:", data);
+                window.location.href = `/predic/${data.filename}`;
+              })
+              .catch((error) => {
+                console.error("Error:", error);
+              });
+          }, "image/jpeg");
+        });
+
+      // Menampilkan nama file yang diunggah
+      $(document).ready(function () {
+        $(".custom-file-input").on("change", function () {
+          var fileName = $(this).val().split("\\").pop();
+          $(this)
+            .siblings(".custom-file-label")
+            .addClass("selected")
+            .html(fileName);
+        });
+
+        $("#file-upload-form").on("submit", function (e) {
+          e.preventDefault(); // Mencegah submit form default
+
+          var formData = new FormData(this);
+          fetch("/upload", {
+            method: "POST",
+            body: formData,
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log("Success:", data);
+              window.location.href = `/predic/${data.filename}`;
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+            });
+        });
+      });
+    </script>
+  </body>
+</html>
